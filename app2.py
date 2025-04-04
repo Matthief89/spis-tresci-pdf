@@ -4,10 +4,20 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv()
-
 # Konfiguracja API (wprowadź swój klucz w .env lub w interfejsie Streamlit)
-API_KEY = os.getenv("OPENAI_API_KEY")
+load_dotenv()  # załaduj zmienne środowiskowe z .env (działa lokalnie)
+
+# Próbuj najpierw odczytać klucz z Streamlit secrets (działa na Streamlit Cloud)
+try:
+    API_KEY = st.secrets["OPENAI_API_KEY"]
+except:
+    # Jeśli nie znajdziesz w st.secrets, spróbuj z zmiennych środowiskowych
+    API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Dodaj weryfikację, czy klucz API został znaleziony
+if not API_KEY:
+    st.error("Nie znaleziono klucza API OpenAI. Dodaj go w ustawieniach aplikacji lub pliku .env")
+    st.stop()
 
 st.title("📄 Generator Spisu Treści z PDF")
 
