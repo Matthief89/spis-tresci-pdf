@@ -33,7 +33,7 @@ def extract_text_from_pdf(file):
 
 def generate_toc_with_gpt4o(pdf_text):
     """Generuje spis treści za pomocą GPT-4o"""
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    client = OpenAI(api_key=API_KEY)
 
     prompt = """
     Instrukcja:
