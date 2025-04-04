@@ -4,7 +4,6 @@ import os
 from openai import OpenAI
 
 # Konfiguracja API (wprowadź swój klucz w .env lub w interfejsie Streamlit)
-API_KEY = os.getenv("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")
 
 st.title("📄 Generator Spisu Treści z PDF")
 
