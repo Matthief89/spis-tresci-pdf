@@ -19,7 +19,7 @@ if not API_KEY:
     st.error("Nie znaleziono klucza API OpenAI. Dodaj go w ustawieniach aplikacji lub pliku .env")
     st.stop()
     
-st.image("assets/download.png", width=100)
+st.image("assets/images.png")
 st.title("📄 Generator Spisu Treści z PDF")
 
 uploaded_file = st.file_uploader("📂 Prześlij plik PDF", type="pdf")
