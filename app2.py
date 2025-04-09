@@ -4,6 +4,21 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
+# Zdefiniuj hasło
+PASSWORD = "twoje_haslo"
+
+# Dodaj prosty formularz logowania
+password = st.text_input("Wprowadź hasło", type="password")
+
+if password == PASSWORD:
+    st.success("Zalogowano pomyślnie!")
+    # Główna część aplikacji
+    st.title("📄 Generator Spisu Treści z PDF")
+    # Twój kod aplikacji
+else:
+    st.error("Niepoprawne hasło!")
+    st.stop()  # Zatrzymuje dalsze wykonywanie aplikacji
+
 # Konfiguracja API (wprowadź swój klucz w .env lub w interfejsie Streamlit)
 load_dotenv()  # załaduj zmienne środowiskowe z .env (działa lokalnie)
 
