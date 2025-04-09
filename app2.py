@@ -12,9 +12,7 @@ password = st.text_input("Wprowadź hasło", type="password")
 
 if password == PASSWORD:
     st.success("Zalogowano pomyślnie!")
-    # Główna część aplikacji
-    st.title("📄 Generator Spisu Treści z PDF")
-    # Twój kod aplikacji
+    
 else:
     st.error("Niepoprawne hasło!")
     st.stop()  # Zatrzymuje dalsze wykonywanie aplikacji
