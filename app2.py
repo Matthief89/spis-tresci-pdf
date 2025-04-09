@@ -4,6 +4,29 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
+# Proste hasło dostępu do aplikacji
+APP_PASSWORD = "twoje_haslo123"  # zmień to na swoje hasło
+
+# Funkcja sprawdzająca hasło
+def check_password():
+    """Zwraca `True` jeśli użytkownik podał poprawne hasło."""
+    if "password_correct" not in st.session_state:
+        st.session_state["password_correct"] = False
+        
+    if st.session_state["password_correct"]:
+        return True
+        
+    password = st.text_input("Hasło dostępu", type="password")
+    if password == APP_PASSWORD:
+        st.session_state["password_correct"] = True
+        st.experimental_rerun()
+        return True
+    elif password:
+        st.error("Niepoprawne hasło")
+        return False
+    else:
+        return False
+
 # Konfiguracja API (wprowadź swój klucz w .env lub w interfejsie Streamlit)
 load_dotenv()  # załaduj zmienne środowiskowe z .env (działa lokalnie)
 
