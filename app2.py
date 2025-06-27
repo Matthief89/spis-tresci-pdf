@@ -61,7 +61,7 @@ Przy numerze rozdziału dodaj jego pełną nazwę.
     <th>Nr strony</th>
   </tr>
   <tr>
-    <td>Wykaz skrótów</td>
+    <td><strong>Wykaz skrótów</strong</td>
     <td>11</td>
   </tr>
   <tr>
