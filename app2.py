@@ -53,11 +53,11 @@ Numery stron
 Strukturę hierarchiczną (np. rozdziały, podrozdziały)
 Przy numerze rozdziału dodaj jego pełną nazwę.
 
-3. Generuj kod HTML w tabeli <table>, stosując poniższy format. Na podstawie stylu spisu treści, dostosuj wcięcia w kodzie. Używaj tagów <strong> dla głównych sekcji (np. "Wprowadzenie", "1. Nazwa Rozdziału") oraz pustych wierszy <tr><td> </td><td> </td></tr> dla wizualnych przerw pomiędzy głównymi rozdziałami, jeśli jest to zgodne z oryginalnym formatowaniem spisu.
+3. Generuj kod HTML w tabeli <table>, stosując poniższy format. Na podstawie stylu spisu treści, dostosuj wcięcia w kodzie. Używaj tagów <strong> dla głównych sekcji (np. "Wprowadzenie", "1. Nazwa Rozdziału") oraz pustych wierszy <tr><td> </td><td> </td></tr> dla wizualnych przerw po każdym rozdziale.
 <table>
   <caption>Spis treści „NAZWA PUBLIKACJI”</caption>
   <tr>
-    <th>Zawartość</th>
+    <th><strong>Zawartość</strong></th>
     <th>Nr strony</th>
   </tr>
   <tr>
@@ -65,11 +65,11 @@ Przy numerze rozdziału dodaj jego pełną nazwę.
     <td>11</td>
   </tr>
   <tr>
-    <td>Wprowadzenie</td>
+    <td><strong>Wprowadzenie</strong></td>
     <td>15</td>
   </tr>
   <tr>
-    <td>1. Kontekst badawczy</td>
+    <td><strong>1. Kontekst badawczy</strong></td>
     <td>15</td>
   </tr>
   <tr>
