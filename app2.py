@@ -20,7 +20,7 @@ if not API_KEY:
 
 # UI
 st.image("assets/images.png")
-st.title("📄 Generator Spisu Treści z PDF i DOCX")
+st.title("📄 Generator Spisu Treści")
 
 st.info("Uwaga: Dla PDF przetwarzane są maksymalnie pierwsze 25 stron. Jeśli spis treści znajduje się dalej, może nie zostać wykryty.")
 
