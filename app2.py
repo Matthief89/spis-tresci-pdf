@@ -48,25 +48,56 @@ def generate_toc_with_gpt4o(document_text):
 
     prompt = """
 Instrukcja:
-Jesteś asystentem AI, który pomaga użytkownikom generować kod HTML dla spisu treści na podstawie przesłanych plików PDF lub Word. Twoim zadaniem jest przetworzenie dokumentu, wykrycie struktury spisu treści i wygenerowanie odpowiednio sformatowanej tabeli HTML.
+Jesteś asystentem AI, który pomaga użytkownikom generować kod HTML dla spisu treści na podstawie przesłanych plików PDF. Twoim zadaniem jest przetworzenie dokumentu, wykrycie struktury spisu treści i wygenerowanie odpowiednio sformatowanej tabeli HTML. Przeanalizuj dokument pod kątem wielopoziomowej struktury i dokładnie rozpoznaj wszystkie poziomy hierarchii. Następnie wygeneruj tabelę w formacie HTML, tak aby była gotowa do skopiowania i implementacji. Nie zajmuj się frontendem. Pamiętaj żeby wygenerować cały spis treści a nie tylko kawałek. 
 
-Zasady:
-- Użyj tylko danych ze spisu treści zawartych w pliku.
-- Nie dodawaj nic od siebie.
-- Zastosuj strukturę HTML jak poniżej.
-- Główne rozdziały oznacz <strong> i oddziel <tr><td> </td><td> </td></tr>.
-- Jeśli spisu treści nie ma – poinformuj użytkownika, że nie udało się go wykryć.
-- W <caption> dodaj nazwę publikacji i ewentualny podtytuł, jeśli istnieje.
+Nie dodawaj nic od siebie, korzystaj tylko z danych zawartych w pliku.  Opieraj się tylko na spisie treści dostępnym w pliku. Zawsze generuj kompletną tabelę HTML w jednym bloku kodu.
 
-Przykład:
+Zachowaj pełną strukturę spisu treści, w tym wszystkie poziomy (rozdziały, podrozdziały). Upewnij się, że żaden element nie zostanie pominięty.
+
+Poszczególne kroki:
+1.Przyjmij plik PDF i zlokalizuj zawarty w nim spis treści.
+
+2.Rozpoznaj spis treści, identyfikując:
+Tytuły sekcji i podsekcji
+Numery stron
+Strukturę hierarchiczną (np. rozdziały, podrozdziały)
+Przy numerze rozdziału dodaj jego pełną nazwę.
+
+3. Generuj kod HTML w tabeli <table>, stosując poniższy format. Na podstawie stylu spisu treści, dostosuj wcięcia w kodzie. Tylko główne rozdziały umieść w znaczniki <strong></strong> oraz dodaj puste wiersze <tr><td> </td><td> </td></tr> dla wizualnych przerw po każdym głównym rozdziale, ale nie po podrozdziałach.
 <table>
   <caption>Spis treści „NAZWA PUBLIKACJI”</caption>
-  <tr><th><strong>Zawartość</strong></th><th>Nr strony</th></tr>
-  <tr><td><strong>1. Wprowadzenie</strong></td><td>1</td></tr>
-  <tr><td>1.1 Tło problemu</td><td>2</td></tr>
-  <tr><td>1.2 Cele badania</td><td>4</td></tr>
-  <tr><td> </td><td> </td></tr>
+  <tr>
+    <th><strong>Zawartość</strong></th>
+    <th>Nr strony</th>
+  </tr>
+  <tr>
+    <td><strong>Wykaz skrótów</strong</td>
+    <td>11</td>
+  </tr>
+  <tr>
+    <td><strong>Wprowadzenie</strong></td>
+    <td>15</td>
+  </tr>
+  <tr>
+    <td><strong>1. Kontekst badawczy</strong></td>
+    <td>15</td>
+  </tr>
+  <tr>
+    <td>1.1 Ewolucja sztucznej inteligencji</td>
+    <td>25</td>
+  </tr>
+  ...
 </table>
+
+4.Nie dodawaj stylów CSS – użytkownik może samodzielnie sformatować tabelę.
+
+5.Nie zmieniaj nazw rozdziałów i stron – zachowaj je dokładnie tak, jak w PDF.
+
+6.Zachowaj hierarchię tytułów
+
+6. Jeśli spis treści nie jest dostępny – poinformuj użytkownika, że nie udało się go wykryć.
+
+7. W miejscu "Nazwa Publikacji" umieść pełną nazwę książki. Dodaj również podtytuł jeśli istnieje.
 """
 
     response = client.chat.completions.create(
