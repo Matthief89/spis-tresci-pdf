@@ -78,3 +78,4 @@ urllib3==2.2.2
 watchdog==6.0.0
 websocket-client==1.8.0
 wsproto==1.2.0
+PyPDF2
