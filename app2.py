@@ -110,7 +110,7 @@ Poszczególne kroki:
         model="gpt-4o",
         messages=[{"role": "system", "content": prompt}, {"role": "user", "content": pdf_text}],
         temperature=0.1,
-        max_tokens=16000
+        max_tokens=18000
     )
 
     return response.choices[0].message.content
