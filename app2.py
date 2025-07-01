@@ -35,7 +35,7 @@ def extract_text_from_pdf(file):
     text = ""
 
     # Pierwsze 25 stron
-    for i in range(min(30, total_pages)):
+    for i in range(min(25, total_pages)):
         text += f"--- STRONA {i+1} ---\n{reader.pages[i].extract_text()}\n\n"
 
     # Ostatnie 25 stron (bez powtórzeń)
