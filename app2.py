@@ -23,7 +23,7 @@ if not API_KEY:
 st.image("assets/images.png")
 st.title("📄 Generator Spisu Treści z PDF / DOCX")
 
-st.info("Uwaga: Dla efektywności aplikacja przetwarza maksymalnie pierwsze i ostatnie 25 stron PDF. "
+st.info("Uwaga: Dla efektywności aplikacja przetwarza maksymalnie pierwsze 30 i ostatnie 25 stron PDF. "
         "Jeśli spis treści znajduje się głębiej, może nie zostać wykryty. Pliki DOCX przetwarzane są w całości.")
 
 uploaded_file = st.file_uploader("📂 Prześlij plik PDF lub DOCX", type=["pdf", "docx"])
