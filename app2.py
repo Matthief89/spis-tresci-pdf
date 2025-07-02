@@ -107,7 +107,7 @@ Poszczególne kroki:
 """
 
     response = client.chat.completions.create(
-        model="gpt-o4-mini",
+        model="gpt-4o",
         messages=[{"role": "system", "content": prompt}, {"role": "user", "content": pdf_text}],
         temperature=0.1,
         max_tokens=16000
