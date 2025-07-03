@@ -2,23 +2,24 @@ import streamlit as st
 import PyPDF2
 import docx
 import os
-import io
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# Konfiguracja API
-load_dotenv()
+# Konfiguracja API (wprowadź swój klucz w .env lub w interfejsie Streamlit)
+load_dotenv()  # załaduj zmienne środowiskowe z .env (działa lokalnie)
 
+# Próbuj najpierw odczytać klucz z Streamlit secrets (działa na Streamlit Cloud)
 try:
     API_KEY = st.secrets["OPENAI_API_KEY"]
 except:
     API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Weryfikacja klucza API
 if not API_KEY:
     st.error("Nie znaleziono klucza API OpenAI. Dodaj go w ustawieniach aplikacji lub pliku .env")
     st.stop()
 
-# Interfejs użytkownika
+# Nagłówek i UI
 st.image("assets/images.png")
 st.title("📄 Generator Spisu Treści")
 
@@ -27,22 +28,24 @@ st.info("Uwaga: Dla efektywności aplikacja przetwarza maksymalnie pierwsze 30 i
 
 uploaded_file = st.file_uploader("📂 Prześlij plik PDF lub DOCX", type=["pdf", "docx"])
 
-# Funkcja do przetwarzania PDF
+# Funkcja: PDF – przetwarza pierwsze i ostatnie 25 stron
 def extract_text_from_pdf(file):
     reader = PyPDF2.PdfReader(file)
     total_pages = len(reader.pages)
     text = ""
 
+    # Pierwsze 25 stron
     for i in range(min(25, total_pages)):
         text += f"--- STRONA {i+1} ---\n{reader.pages[i].extract_text()}\n\n"
 
+    # Ostatnie 25 stron (bez powtórzeń)
     if total_pages > 25:
         for i in range(max(total_pages - 25, 25), total_pages):
             text += f"--- STRONA {i+1} ---\n{reader.pages[i].extract_text()}\n\n"
 
     return text
 
-# Funkcja do przetwarzania DOCX
+# Funkcja: DOCX – przetwarza cały dokument Worda
 def extract_text_from_docx(file):
     doc = docx.Document(file)
     text = ""
@@ -50,7 +53,7 @@ def extract_text_from_docx(file):
         text += para.text + "\n"
     return text
 
-# Funkcja generująca spis treści z GPT-4o
+# Funkcja: generowanie spisu treści przez GPT-4o
 def generate_toc_with_gpt4o(pdf_text):
     client = OpenAI(api_key=API_KEY)
 
@@ -105,17 +108,14 @@ Poszczególne kroki:
 
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": pdf_text}
-        ],
+        messages=[{"role": "system", "content": prompt}, {"role": "user", "content": pdf_text}],
         temperature=0.1,
         max_tokens=16000
     )
 
     return response.choices[0].message.content
 
-# Główna logika aplikacji
+# Główna logika przetwarzania pliku
 if uploaded_file:
     with st.spinner("📖 Przetwarzanie pliku..."):
         if uploaded_file.type == "application/pdf":
@@ -128,23 +128,7 @@ if uploaded_file:
 
         if extracted_text.strip():
             toc = generate_toc_with_gpt4o(extracted_text)
-
             st.subheader("📑 Wygenerowany Spis Treści")
-
-            # Pokazujemy tylko fragment, reszta do pobrania
-            st.markdown(toc[:1000] + "...\n\n⚠️ Cały spis treści dostępny do pobrania poniżej.", unsafe_allow_html=True)
-
-            # Przygotowanie pliku do pobrania
-            html_file = io.BytesIO()
-            html_file.write(toc.encode("utf-8"))
-            html_file.seek(0)
-
-            st.download_button(
-                label="📥 Pobierz pełny spis treści (txt)",
-                data=html_file,
-                file_name="spis_tresci.txt",
-                mime="text/plain"
-            )
-
+            st.markdown(toc, unsafe_allow_html=True)
         else:
             st.error("⚠️ Nie udało się odczytać tekstu z pliku.")
