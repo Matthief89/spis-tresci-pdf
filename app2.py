@@ -130,5 +130,12 @@ if uploaded_file:
             toc = generate_toc_with_gpt4o(extracted_text)
             st.subheader("📑 Wygenerowany Spis Treści")
             st.markdown(toc, unsafe_allow_html=True)
+
+            st.download_button(
+                label="⬇️ Pobierz spis treści jako plik TXT",
+                data=toc,
+                file_name="spis_tresci.txt",
+                mime="text/plain"
+            )
         else:
             st.error("⚠️ Nie udało się odczytać tekstu z pliku.")
