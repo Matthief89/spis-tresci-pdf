@@ -100,13 +100,13 @@ Poszczególne kroki:
 """
 
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4.1",
         messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": text}
         ],
         temperature=0.1,
-        max_tokens=8000
+        max_tokens=30000
     )
 
     return response.choices[0].message.content
