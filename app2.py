@@ -5,18 +5,21 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# Konfiguracja API
-load_dotenv()
+# Konfiguracja API (wprowadź swój klucz w .env lub w interfejsie Streamlit)
+load_dotenv()  # załaduj zmienne środowiskowe z .env (działa lokalnie)
+
+# Próbuj najpierw odczytać klucz z Streamlit secrets (działa na Streamlit Cloud)
 try:
     API_KEY = st.secrets["OPENAI_API_KEY"]
 except:
     API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Weryfikacja klucza API
 if not API_KEY:
     st.error("Nie znaleziono klucza API OpenAI. Dodaj go w ustawieniach aplikacji lub pliku .env")
     st.stop()
 
-# UI
+# Nagłówek i UI
 st.image("assets/images.png")
 st.title("📄 Generator Spisu Treści")
 
@@ -25,36 +28,38 @@ st.info("Uwaga: Dla efektywności aplikacja przetwarza maksymalnie pierwsze 30 i
 
 uploaded_file = st.file_uploader("📂 Prześlij plik PDF lub DOCX", type=["pdf", "docx"])
 
-# --- Funkcje ---
-
+# Funkcja: PDF – przetwarza pierwsze i ostatnie 25 stron
 def extract_text_from_pdf(file):
     reader = PyPDF2.PdfReader(file)
     total_pages = len(reader.pages)
     text = ""
 
+    # Pierwsze 25 stron
     for i in range(min(25, total_pages)):
         text += f"--- STRONA {i+1} ---\n{reader.pages[i].extract_text()}\n\n"
 
+    # Ostatnie 25 stron (bez powtórzeń)
     if total_pages > 25:
         for i in range(max(total_pages - 25, 25), total_pages):
             text += f"--- STRONA {i+1} ---\n{reader.pages[i].extract_text()}\n\n"
 
     return text
 
-
+# Funkcja: DOCX – przetwarza cały dokument Worda
 def extract_text_from_docx(file):
     doc = docx.Document(file)
-    return "\n".join([para.text for para in doc.paragraphs])
+    text = ""
+    for para in doc.paragraphs:
+        text += para.text + "\n"
+    return text
 
-
-def generate_toc_with_gpt4o(text):
+# Funkcja: generowanie spisu treści przez GPT-4o
+def generate_toc_with_gpt4o(pdf_text):
     client = OpenAI(api_key=API_KEY)
 
     prompt = """
 Instrukcja:
 Jesteś asystentem AI, który pomaga użytkownikom generować kod HTML dla spisu treści na podstawie przesłanych plików PDF lub DOCX. Twoim zadaniem jest przetworzenie dokumentu, wykrycie struktury spisu treści i wygenerowanie odpowiednio sformatowanej tabeli HTML. Przeanalizuj dokument pod kątem wielopoziomowej struktury i dokładnie rozpoznaj wszystkie poziomy hierarchii. Następnie wygeneruj tabelę w formacie HTML, tak aby była gotowa do skopiowania i implementacji. Nie zajmuj się frontendem. Pamiętaj żeby wygenerować cały spis treści a nie tylko kawałek.
-
-Output ma być w formacie HTML, nie może być to wizualna tabela.
 
 Nie dodawaj nic od siebie, korzystaj tylko z danych zawartych w pliku. Opieraj się tylko na spisie treści dostępnym w pliku. Zawsze generuj kompletną tabelę HTML w jednym bloku kodu.
 
@@ -103,42 +108,14 @@ Poszczególne kroki:
 
     response = client.chat.completions.create(
         model="gpt-4.1",
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": text}
-        ],
+        messages=[{"role": "system", "content": prompt}, {"role": "user", "content": pdf_text}],
         temperature=0.1,
         max_tokens=30000
     )
 
     return response.choices[0].message.content
 
-
-def generate_toc_continuation(text, previous_output):
-    client = OpenAI(api_key=API_KEY)
-
-    prompt = """
-Kontynuuj generowanie spisu treści w formacie HTML od miejsca, w którym poprzednia odpowiedź została ucięta.
-Nie powtarzaj wcześniejszych pozycji.
-Zachowaj strukturę tabeli i numerację.
-"""
-
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": text},
-            {"role": "assistant", "content": previous_output},
-            {"role": "user", "content": "Kontynuuj spis treści."}
-        ],
-        temperature=0.1,
-        max_tokens=8000
-    )
-
-    return response.choices[0].message.content
-
-# --- Logika aplikacji ---
-
+# Główna logika przetwarzania pliku
 if uploaded_file:
     with st.spinner("📖 Przetwarzanie pliku..."):
         if uploaded_file.type == "application/pdf":
@@ -151,36 +128,7 @@ if uploaded_file:
 
         if extracted_text.strip():
             toc = generate_toc_with_gpt4o(extracted_text)
-            st.session_state["toc_part1"] = toc
-            st.session_state["extracted_text"] = extracted_text
-
             st.subheader("📑 Wygenerowany Spis Treści")
             st.markdown(toc, unsafe_allow_html=True)
-
-            if not toc.strip().endswith("</table>") or len(toc) > 7000:
-                st.warning("⚠️ Spis treści może być niepełny. Kliknij poniżej, aby kontynuować jego generowanie.")
-                if st.button("📄 Kontynuuj generowanie spisu treści"):
-                    with st.spinner("⏳ Generowanie dalszej części..."):
-                        continuation = generate_toc_continuation(
-                            st.session_state["extracted_text"],
-                            st.session_state["toc_part1"]
-                        )
-                        st.session_state["toc_part2"] = continuation
-                        st.subheader("📑 Dalsza część spisu treści")
-                        st.markdown(continuation, unsafe_allow_html=True)
-
-        if extracted_text.strip():
-    toc = generate_toc_with_gpt4o(extracted_text)
-    st.subheader("📑 Wygenerowany Spis Treści")
-    st.markdown(toc, unsafe_allow_html=True)
-
-    # Przygotuj plik do pobrania
-    st.download_button(
-        label="⬇️ Pobierz spis treści jako plik TXT",
-        data=toc,
-        file_name="spis_tresci.html",
-        mime="text/html"
-    )
-
         else:
             st.error("⚠️ Nie udało się odczytać tekstu z pliku.")
