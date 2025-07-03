@@ -5,59 +5,62 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# Konfiguracja API (wprowadź swój klucz w .env lub w interfejsie Streamlit)
-load_dotenv()  # załaduj zmienne środowiskowe z .env (działa lokalnie)
-
-# Próbuj najpierw odczytać klucz z Streamlit secrets (działa na Streamlit Cloud)
+# Konfiguracja API
+load_dotenv()
 try:
     API_KEY = st.secrets["OPENAI_API_KEY"]
 except:
     API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Weryfikacja klucza API
 if not API_KEY:
     st.error("Nie znaleziono klucza API OpenAI. Dodaj go w ustawieniach aplikacji lub pliku .env")
     st.stop()
 
-# Nagłówek i UI
+client = OpenAI(api_key=API_KEY)
+
+# Stan aplikacji
+if 'toc_partial' not in st.session_state:
+    st.session_state['toc_partial'] = ""
+if 'previous_text' not in st.session_state:
+    st.session_state['previous_text'] = ""
+if 'last_page_processed' not in st.session_state:
+    st.session_state['last_page_processed'] = 0
+if 'uploaded_file' not in st.session_state:
+    st.session_state['uploaded_file'] = None
+
+# UI
 st.image("assets/images.png")
 st.title("📄 Generator Spisu Treści")
 
-st.info("Uwaga: Dla efektywności aplikacja przetwarza maksymalnie pierwsze 30 i ostatnie 25 stron PDF. "
-        "Jeśli spis treści znajduje się głębiej, może nie zostać wykryty. Pliki DOCX przetwarzane są w całości.")
+st.info("Aplikacja przetwarza maksymalnie pierwsze 50 i ostatnie 50 stron PDF. Pliki DOCX są przetwarzane w całości.")
 
 uploaded_file = st.file_uploader("📂 Prześlij plik PDF lub DOCX", type=["pdf", "docx"])
 
-# Funkcja: PDF – przetwarza pierwsze i ostatnie 25 stron
-def extract_text_from_pdf(file):
+if uploaded_file:
+    st.session_state['uploaded_file'] = uploaded_file
+
+# Ekstrakcja tekstu z PDF
+
+def extract_text_from_pdf(file, start_page=0, end_page=None):
     reader = PyPDF2.PdfReader(file)
     total_pages = len(reader.pages)
     text = ""
+    end_page = end_page or total_pages
 
-    # Pierwsze 25 stron
-    for i in range(min(25, total_pages)):
-        text += f"--- STRONA {i+1} ---\n{reader.pages[i].extract_text()}\n\n"
-
-    # Ostatnie 25 stron (bez powtórzeń)
-    if total_pages > 25:
-        for i in range(max(total_pages - 25, 25), total_pages):
-            text += f"--- STRONA {i+1} ---\n{reader.pages[i].extract_text()}\n\n"
-
+    for i in range(start_page, min(end_page, total_pages)):
+        page = reader.pages[i].extract_text()
+        if page:
+            text += f"--- STRONA {i+1} ---\n{page}\n\n"
     return text
 
-# Funkcja: DOCX – przetwarza cały dokument Worda
+# Ekstrakcja tekstu z DOCX
+
 def extract_text_from_docx(file):
     doc = docx.Document(file)
-    text = ""
-    for para in doc.paragraphs:
-        text += para.text + "\n"
-    return text
+    return "\n".join([p.text for p in doc.paragraphs])
 
-# Funkcja: generowanie spisu treści przez GPT-4o
-def generate_toc_with_gpt4o(pdf_text, context_html=None):
-    client = OpenAI(api_key=API_KEY)
-
-    prompt_intro = """
+# Prompt bazowy
+prompt_base = """
 Instrukcja:
 Jesteś asystentem AI, który pomaga użytkownikom generować kod HTML dla spisu treści na podstawie przesłanych plików PDF lub DOCX. Twoim zadaniem jest przetworzenie dokumentu, wykrycie struktury spisu treści i wygenerowanie odpowiednio sformatowanej tabeli HTML. Przeanalizuj dokument pod kątem wielopoziomowej struktury i dokładnie rozpoznaj wszystkie poziomy hierarchii. Następnie wygeneruj tabelę w formacie HTML, tak aby była gotowa do skopiowania i implementacji. Nie zajmuj się frontendem. Pamiętaj żeby wygenerować cały spis treści a nie tylko kawałek.
 
@@ -106,71 +109,71 @@ Poszczególne kroki:
 8. W miejscu "Nazwa Publikacji" umieść pełną nazwę książki. Dodaj również podtytuł jeśli istnieje.
 """
 
-    if context_html:
-        # To jest wywołanie "kontynuuj"
-        messages = [
-            {"role": "system", "content": prompt_intro},
-            {"role": "user", "content": f"Dotychczas wygenerowany spis treści HTML:\n{context_html}\n\n"
-                                       f"Kontynuuj generowanie spisu treści, nie powtarzaj już wygenerowanych elementów."}
-        ]
-    else:
-        # Pierwsze wywołanie
-        messages = [
-            {"role": "system", "content": prompt_intro},
-            {"role": "user", "content": pdf_text}
-        ]
+# Generowanie spisu treści
 
+def generate_toc(prompt):
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=messages,
+        messages=[{"role": "system", "content": prompt_base},
+                  {"role": "user", "content": prompt}],
         temperature=0.1,
         max_tokens=16000
     )
-
     return response.choices[0].message.content
 
-# Inicjalizacja stanu sesji
-if 'toc_partial' not in st.session_state:
-    st.session_state['toc_partial'] = ""
-if 'toc_complete' not in st.session_state:
-    st.session_state['toc_complete'] = False
-if 'extracted_text' not in st.session_state:
-    st.session_state['extracted_text'] = ""
+# Pierwsze przetwarzanie pliku
+if st.session_state['uploaded_file'] and st.session_state['last_page_processed'] == 0:
+    with st.spinner("📖 Przetwarzanie pliku..."):
+        file = st.session_state['uploaded_file']
 
-# Główna logika przetwarzania pliku
-if uploaded_file:
-    if st.session_state['extracted_text'] == "":
-        # Pobierz tekst z pliku tylko raz i zapamiętaj
-        if uploaded_file.type == "application/pdf":
-            st.session_state['extracted_text'] = extract_text_from_pdf(uploaded_file)
-        elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            st.session_state['extracted_text'] = extract_text_from_docx(uploaded_file)
+        if file.type == "application/pdf":
+            text = extract_text_from_pdf(file, 0, 50)
+        elif file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            text = extract_text_from_docx(file)
         else:
             st.error("❌ Obsługiwany jest tylko PDF lub DOCX.")
             st.stop()
 
-    if st.session_state['toc_partial'] == "" and st.session_state['extracted_text'].strip():
-        with st.spinner("📖 Generowanie spisu treści..."):
-            toc_part = generate_toc_with_gpt4o(st.session_state['extracted_text'])
-            st.session_state['toc_partial'] = toc_part
+        if text.strip():
+            toc = generate_toc(text)
+            st.session_state['toc_partial'] = toc
+            st.session_state['previous_text'] = text
+            st.session_state['last_page_processed'] = 50
+            st.subheader("📑 Wygenerowany Spis Treści")
+            st.markdown(toc, unsafe_allow_html=True)
+        else:
+            st.error("⚠️ Nie udało się odczytać tekstu z pliku.")
 
-    st.subheader("📑 Wygenerowany Spis Treści")
-    st.markdown(st.session_state['toc_partial'], unsafe_allow_html=True)
+# Kontynuacja
+if st.session_state['last_page_processed'] > 0:
+    if st.button("📎 Kontynuuj"):
+        with st.spinner("🔄 Przetwarzanie kolejnych stron..."):
+            file = st.session_state['uploaded_file']
+            last = st.session_state['last_page_processed']
+            new_text = extract_text_from_pdf(file, last, last + 50)
 
-    if not st.session_state['toc_complete']:
-        if st.button("➡️ Kontynuuj generowanie spisu treści"):
-            with st.spinner("⏳ Kontynuacja generowania spisu treści..."):
-                new_part = generate_toc_with_gpt4o(
-                    pdf_text=None,
-                    context_html=st.session_state['toc_partial']
-                )
-            # Sprawdź, czy otrzymana nowa część jest inna od poprzedniej
-            if new_part.strip() == "" or new_part.strip() == st.session_state['toc_partial']:
-                st.session_state['toc_complete'] = True
-                st.success("✅ Generowanie spisu treści zakończone.")
-            else:
-                # Doklej nową część i odśwież UI
-                st.session_state['toc_partial'] += new_part
-                st.rerun()
-else:
-    st.info("Proszę prześlij plik PDF lub DOCX, aby rozpocząć generowanie spisu treści.")
+            if not new_text.strip():
+                st.warning("Nie znaleziono więcej tekstu do przetworzenia.")
+                st.stop()
+
+            followup_prompt = f"Kontynuuj spis treści na podstawie dodatkowego fragmentu dokumentu. Nie powtarzaj poprzednich pozycji.\n\n{new_text}"
+
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": prompt_base},
+                    {"role": "user", "content": st.session_state['previous_text']},
+                    {"role": "assistant", "content": st.session_state['toc_partial']},
+                    {"role": "user", "content": followup_prompt},
+                ],
+                temperature=0.1,
+                max_tokens=16000
+            )
+
+            new_toc = response.choices[0].message.content
+            st.session_state['toc_partial'] += "\n" + new_toc
+            st.session_state['previous_text'] += "\n" + new_text
+            st.session_state['last_page_processed'] += 50
+
+            st.subheader("📑 Uzupełniony Spis Treści")
+            st.markdown(st.session_state['toc_partial'], unsafe_allow_html=True)
