@@ -5,63 +5,56 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 
-# --- Ładowanie zmiennych środowiskowych ---
-load_dotenv()
+# Konfiguracja API (wprowadź swój klucz w .env lub w interfejsie Streamlit)
+load_dotenv()  # załaduj zmienne środowiskowe z .env (działa lokalnie)
 
+# Próbuj najpierw odczytać klucz z Streamlit secrets (działa na Streamlit Cloud)
 try:
     API_KEY = st.secrets["OPENAI_API_KEY"]
 except:
     API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Weryfikacja klucza API
 if not API_KEY:
     st.error("Nie znaleziono klucza API OpenAI. Dodaj go w ustawieniach aplikacji lub pliku .env")
     st.stop()
 
-# --- UI ---
+# Nagłówek i UI
 st.image("assets/images.png")
 st.title("📄 Generator Spisu Treści")
-st.info("Dla efektywności aplikacja przetwarza tylko część dokumentu. "
-        "Jeśli spis treści zajmuje wiele stron, zostanie podzielony i zrekonstruowany.")
+
+st.info("Uwaga: Dla efektywności aplikacja przetwarza maksymalnie pierwsze 30 i ostatnie 25 stron PDF. "
+        "Jeśli spis treści znajduje się głębiej, może nie zostać wykryty. Pliki DOCX przetwarzane są w całości.")
 
 uploaded_file = st.file_uploader("📂 Prześlij plik PDF lub DOCX", type=["pdf", "docx"])
 
-# --- Funkcje ---
-
+# Funkcja: PDF – przetwarza pierwsze i ostatnie 25 stron
 def extract_text_from_pdf(file):
     reader = PyPDF2.PdfReader(file)
     total_pages = len(reader.pages)
     text = ""
 
-    for i in range(min(30, total_pages)):
-        page = reader.pages[i].extract_text()
-        text += f"--- STRONA {i+1} ---\n{page if page else ''}\n\n"
+    # Pierwsze 25 stron
+    for i in range(min(25, total_pages)):
+        text += f"--- STRONA {i+1} ---\n{reader.pages[i].extract_text()}\n\n"
 
-    if total_pages > 30:
-        for i in range(max(total_pages - 25, 30), total_pages):
-            page = reader.pages[i].extract_text()
-            text += f"--- STRONA {i+1} ---\n{page if page else ''}\n\n"
+    # Ostatnie 25 stron (bez powtórzeń)
+    if total_pages > 25:
+        for i in range(max(total_pages - 25, 25), total_pages):
+            text += f"--- STRONA {i+1} ---\n{reader.pages[i].extract_text()}\n\n"
 
     return text
 
+# Funkcja: DOCX – przetwarza cały dokument Worda
 def extract_text_from_docx(file):
     doc = docx.Document(file)
-    return "\n".join(para.text for para in doc.paragraphs)
+    text = ""
+    for para in doc.paragraphs:
+        text += para.text + "\n"
+    return text
 
-def split_text_into_chunks(text, chunk_size=6000):
-    paragraphs = text.split("\n")
-    chunks = []
-    current_chunk = ""
-
-    for para in paragraphs:
-        if len(current_chunk) + len(para) > chunk_size:
-            chunks.append(current_chunk)
-            current_chunk = ""
-        current_chunk += para + "\n"
-    if current_chunk:
-        chunks.append(current_chunk)
-    return chunks
-
-def generate_toc_with_gpt4o(chunk_text):
+# Funkcja: generowanie spisu treści przez GPT-4o
+def generate_toc_with_gpt4o(pdf_text):
     client = OpenAI(api_key=API_KEY)
 
     prompt = """
@@ -115,52 +108,28 @@ Poszczególne kroki:
 
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "system", "content": prompt}, {"role": "user", "content": chunk_text}],
+        messages=[{"role": "system", "content": prompt}, {"role": "user", "content": pdf_text}],
         temperature=0.1,
-        max_tokens=4096  # bezpieczny limit
+        max_tokens=16000
     )
 
     return response.choices[0].message.content
 
-
-# --- Sesja do przechowywania wyników ---
-if "toc_output" not in st.session_state:
-    st.session_state.toc_output = ""
-if "chunks_remaining" not in st.session_state:
-    st.session_state.chunks_remaining = []
-
-
-# --- Przetwarzanie pliku ---
+# Główna logika przetwarzania pliku
 if uploaded_file:
     with st.spinner("📖 Przetwarzanie pliku..."):
         if uploaded_file.type == "application/pdf":
-            text = extract_text_from_pdf(uploaded_file)
+            extracted_text = extract_text_from_pdf(uploaded_file)
         elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            text = extract_text_from_docx(uploaded_file)
+            extracted_text = extract_text_from_docx(uploaded_file)
         else:
             st.error("❌ Obsługiwany jest tylko PDF lub DOCX.")
             st.stop()
 
-        if text.strip():
-            chunks = split_text_into_chunks(text)
-            st.session_state.chunks_remaining = chunks
+        if extracted_text.strip():
+            toc = generate_toc_with_gpt4o(extracted_text)
+            st.subheader("📑 Wygenerowany Spis Treści")
+            st.markdown(toc, unsafe_allow_html=True)
         else:
             st.error("⚠️ Nie udało się odczytać tekstu z pliku.")
 
-# --- Generowanie spisu treści ---
-if st.session_state.chunks_remaining:
-    if st.button("🚀 Wygeneruj kolejną część spisu treści"):
-        current_chunk = st.session_state.chunks_remaining.pop(0)
-        with st.spinner("✍️ Generowanie fragmentu..."):
-            toc_part = generate_toc_with_gpt4o(current_chunk)
-            st.session_state.toc_output += "\n\n" + toc_part
-
-# --- Wyświetlenie wyniku ---
-if st.session_state.toc_output:
-    st.subheader("📑 Wygenerowany Spis Treści")
-    st.markdown(st.session_state.toc_output, unsafe_allow_html=True)
-
-    if st.session_state.chunks_remaining:
-        st.success("Część spisu treści została wygenerowana. Kliknij ponownie, aby kontynuować.")
-    else:
-        st.success("✅ Wszystkie części spisu treści zostały wygenerowane.")
