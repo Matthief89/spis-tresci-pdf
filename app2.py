@@ -54,10 +54,10 @@ def extract_text_from_docx(file):
     return text
 
 # Funkcja: generowanie spisu treści przez GPT-4o
-def generate_toc_with_gpt4o(pdf_text):
+def generate_toc_with_gpt4o(pdf_text, context_html=None):
     client = OpenAI(api_key=API_KEY)
 
-    prompt = """
+    prompt_intro = """
 Instrukcja:
 Jesteś asystentem AI, który pomaga użytkownikom generować kod HTML dla spisu treści na podstawie przesłanych plików PDF lub DOCX. Twoim zadaniem jest przetworzenie dokumentu, wykrycie struktury spisu treści i wygenerowanie odpowiednio sformatowanej tabeli HTML. Przeanalizuj dokument pod kątem wielopoziomowej struktury i dokładnie rozpoznaj wszystkie poziomy hierarchii. Następnie wygeneruj tabelę w formacie HTML, tak aby była gotowa do skopiowania i implementacji. Nie zajmuj się frontendem. Pamiętaj żeby wygenerować cały spis treści a nie tylko kawałek.
 
@@ -106,29 +106,71 @@ Poszczególne kroki:
 8. W miejscu "Nazwa Publikacji" umieść pełną nazwę książki. Dodaj również podtytuł jeśli istnieje.
 """
 
+    if context_html:
+        # To jest wywołanie "kontynuuj"
+        messages = [
+            {"role": "system", "content": prompt_intro},
+            {"role": "user", "content": f"Dotychczas wygenerowany spis treści HTML:\n{context_html}\n\n"
+                                       f"Kontynuuj generowanie spisu treści, nie powtarzaj już wygenerowanych elementów."}
+        ]
+    else:
+        # Pierwsze wywołanie
+        messages = [
+            {"role": "system", "content": prompt_intro},
+            {"role": "user", "content": pdf_text}
+        ]
+
     response = client.chat.completions.create(
         model="gpt-4o",
-        messages=[{"role": "system", "content": prompt}, {"role": "user", "content": pdf_text}],
+        messages=messages,
         temperature=0.1,
         max_tokens=16000
     )
 
     return response.choices[0].message.content
 
+# Inicjalizacja stanu sesji
+if 'toc_partial' not in st.session_state:
+    st.session_state['toc_partial'] = ""
+if 'toc_complete' not in st.session_state:
+    st.session_state['toc_complete'] = False
+if 'extracted_text' not in st.session_state:
+    st.session_state['extracted_text'] = ""
+
 # Główna logika przetwarzania pliku
 if uploaded_file:
-    with st.spinner("📖 Przetwarzanie pliku..."):
+    if st.session_state['extracted_text'] == "":
+        # Pobierz tekst z pliku tylko raz i zapamiętaj
         if uploaded_file.type == "application/pdf":
-            extracted_text = extract_text_from_pdf(uploaded_file)
+            st.session_state['extracted_text'] = extract_text_from_pdf(uploaded_file)
         elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            extracted_text = extract_text_from_docx(uploaded_file)
+            st.session_state['extracted_text'] = extract_text_from_docx(uploaded_file)
         else:
             st.error("❌ Obsługiwany jest tylko PDF lub DOCX.")
             st.stop()
 
-        if extracted_text.strip():
-            toc = generate_toc_with_gpt4o(extracted_text)
-            st.subheader("📑 Wygenerowany Spis Treści")
-            st.markdown(toc, unsafe_allow_html=True)
-        else:
-            st.error("⚠️ Nie udało się odczytać tekstu z pliku.")
+    if st.session_state['toc_partial'] == "" and st.session_state['extracted_text'].strip():
+        with st.spinner("📖 Generowanie spisu treści..."):
+            toc_part = generate_toc_with_gpt4o(st.session_state['extracted_text'])
+            st.session_state['toc_partial'] = toc_part
+
+    st.subheader("📑 Wygenerowany Spis Treści")
+    st.markdown(st.session_state['toc_partial'], unsafe_allow_html=True)
+
+    if not st.session_state['toc_complete']:
+        if st.button("➡️ Kontynuuj generowanie spisu treści"):
+            with st.spinner("⏳ Kontynuacja generowania spisu treści..."):
+                new_part = generate_toc_with_gpt4o(
+                    pdf_text=None,
+                    context_html=st.session_state['toc_partial']
+                )
+            # Sprawdź, czy otrzymana nowa część jest inna od poprzedniej
+            if new_part.strip() == "" or new_part.strip() == st.session_state['toc_partial']:
+                st.session_state['toc_complete'] = True
+                st.success("✅ Generowanie spisu treści zakończone.")
+            else:
+                # Doklej nową część i odśwież UI
+                st.session_state['toc_partial'] += new_part
+                st.experimental_rerun()
+else:
+    st.info("Proszę prześlij plik PDF lub DOCX, aby rozpocząć generowanie spisu treści.")
