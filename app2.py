@@ -140,10 +140,10 @@ if uploaded_file:
             html_file.seek(0)
 
             st.download_button(
-                label="📥 Pobierz pełny spis treści (HTML)",
+                label="📥 Pobierz pełny spis treści (txt)",
                 data=html_file,
-                file_name="spis_tresci.html",
-                mime="text/html"
+                file_name="spis_tresci.txt",
+                mime="text/plain"
             )
 
         else:
