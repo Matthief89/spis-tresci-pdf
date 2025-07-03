@@ -169,5 +169,18 @@ if uploaded_file:
                         st.subheader("📑 Dalsza część spisu treści")
                         st.markdown(continuation, unsafe_allow_html=True)
 
+        if extracted_text.strip():
+    toc = generate_toc_with_gpt4o(extracted_text)
+    st.subheader("📑 Wygenerowany Spis Treści")
+    st.markdown(toc, unsafe_allow_html=True)
+
+    # Przygotuj plik do pobrania
+    st.download_button(
+        label="⬇️ Pobierz spis treści jako plik TXT",
+        data=toc,
+        file_name="spis_tresci.html",
+        mime="text/html"
+    )
+
         else:
             st.error("⚠️ Nie udało się odczytać tekstu z pliku.")
