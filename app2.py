@@ -171,6 +171,6 @@ if uploaded_file:
             else:
                 # Doklej nową część i odśwież UI
                 st.session_state['toc_partial'] += new_part
-                st.experimental_rerun()
+                st.rerun()
 else:
     st.info("Proszę prześlij plik PDF lub DOCX, aby rozpocząć generowanie spisu treści.")
