@@ -155,6 +155,26 @@ if uploaded_file:
             st.subheader("📑 Wygenerowany Spis Treści")
             st.markdown(toc, unsafe_allow_html=True)
 
+            st.markdown("""
+            <style>
+                .rozdzial {
+                    padding-top: 20px;
+                }
+            </style>
+
+            <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const rows = document.querySelectorAll("table tr");
+                rows.forEach(row => {
+                    const firstCell = row.querySelector("td");
+                    if (firstCell && /rozdział/i.test(firstCell.textContent)) {
+                        row.classList.add("rozdzial");
+                    }
+                });
+            });
+            </script>
+            """, unsafe_allow_html=True)
+
             if not toc.strip().endswith("</table>") or len(toc) > 7000:
                 st.warning("⚠️ Spis treści może być niepełny. Kliknij poniżej, aby kontynuować jego generowanie.")
                 if st.button("📄 Kontynuuj generowanie spisu treści"):
@@ -166,6 +186,19 @@ if uploaded_file:
                         st.session_state["toc_part2"] = continuation
                         st.subheader("📑 Dalsza część spisu treści")
                         st.markdown(continuation, unsafe_allow_html=True)
+                        st.markdown("""
+                        <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            const rows = document.querySelectorAll("table tr");
+                            rows.forEach(row => {
+                                const firstCell = row.querySelector("td");
+                                if (firstCell && /rozdział/i.test(firstCell.textContent)) {
+                                    row.classList.add("rozdzial");
+                                }
+                            });
+                        });
+                        </script>
+                        """, unsafe_allow_html=True)
 
         else:
             st.error("⚠️ Nie udało się odczytać tekstu z pliku.")
