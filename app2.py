@@ -66,7 +66,8 @@ Poszczególne kroki:
    - Strukturę hierarchiczną (np. rozdziały, podrozdziały)
    - Przy numerze rozdziału dodaj jego pełną nazwę.
 3. Generuj kod HTML w tabeli <table>, stosując poniższy format. Na podstawie stylu spisu treści, dostosuj wcięcia w kodzie.
-   Tylko główne rozdziały umieść w znaczniki <strong></strong> oraz dodaj puste wiersze <tr><td> </td><td> </td></tr> po każdym z nich.
+   Tylko główne rozdziały oraz inne pozycje najwyższego poziomu (np. „Wprowadzenie”, „Wykaz skrótów”) umieść w znacznikach <strong></strong> oraz dodaj **obowiązkowo puste wiersze <tr><td> </td><td> </td></tr> po każdej z nich – również na początku**.
+
 <table>
   <caption>Spis treści „NAZWA PUBLIKACJI”</caption>
   <tr>
