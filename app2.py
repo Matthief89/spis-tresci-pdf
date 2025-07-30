@@ -1,4 +1,4 @@
-mport streamlit as st
+import streamlit as st
 import PyPDF2
 import docx
 import os
@@ -169,5 +169,3 @@ if uploaded_file:
 
         else:
             st.error("⚠️ Nie udało się odczytać tekstu z pliku.")
-
-
